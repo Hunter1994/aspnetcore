@@ -38,6 +38,7 @@ namespace Microsoft.AspNetCore.Internal
             _stdoutCapture = new StringBuilder();
             _stderrCapture = new StringBuilder();
             _stdoutLines = new BlockingCollection<string>();
+            _exited = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
 
             _process = proc;
             proc.EnableRaisingEvents = true;
@@ -47,12 +48,16 @@ namespace Microsoft.AspNetCore.Internal
             proc.BeginOutputReadLine();
             proc.BeginErrorReadLine();
 
-            _exited = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            // We greedily create a timeout exception message even though a timeout is unlikely to happen for two reasons:
+            // 1. To make it less likely for Process getters to throw exceptions like "System.InvalidOperationException: Process has exited, ..."
+            // 2. To ensure if/when exceptions are thrown from Process getters, these exceptions can easily be observed.
+            var timeoutExMessage = $"Process proc {proc.ProcessName} {proc.StartInfo.Arguments} timed out after {DefaultProcessTimeout}.";
 
             _processTimeoutCts = new CancellationTokenSource(timeout);
             _processTimeoutCts.Token.Register(() =>
             {
-                _exited.TrySetException(new TimeoutException($"Process proc {proc.ProcessName} {proc.StartInfo.Arguments} timed out after {DefaultProcessTimeout}."));
+                _exited.TrySetException(new TimeoutException(timeoutExMessage));
             });
         }
 
@@ -171,6 +176,13 @@ namespace Microsoft.AspNetCore.Internal
 
         private void OnProcessExited(object sender, EventArgs e)
         {
+            lock (_testOutputLock)
+            {
+                if (!_disposed)
+                {
+                    _output.WriteLine("Process exited.");
+                }
+            }
             _process.WaitForExit();
             _stdoutLines.CompleteAdding();
             _stdoutLines = null;
@@ -213,8 +225,8 @@ namespace Microsoft.AspNetCore.Internal
         private static string GetNugetPackagesRestorePath() => (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("NUGET_RESTORE")))
             ? typeof(ProcessEx).Assembly
                 .GetCustomAttributes<AssemblyMetadataAttribute>()
-                .First(attribute => attribute.Key == "TestPackageRestorePath")
-                .Value
+                .FirstOrDefault(attribute => attribute.Key == "TestPackageRestorePath")
+                ?.Value
             : Environment.GetEnvironmentVariable("NUGET_RESTORE");
 
         public void Dispose()

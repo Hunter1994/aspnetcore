@@ -1,6 +1,8 @@
 // Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
+#nullable disable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -47,7 +49,7 @@ namespace Microsoft.AspNetCore.Routing.Matching
             }
             else
             {
-                UseCorrectCatchAllBehavior = false; // default to bugged behavior
+                UseCorrectCatchAllBehavior = true; // default to correct behavior
             }
 
             var (nodeBuilderPolicies, endpointComparerPolicies, endpointSelectorPolicies) = ExtractPolicies(policies.OrderBy(p => p.Order));
@@ -663,37 +665,6 @@ namespace Microsoft.AspNetCore.Routing.Matching
                     Array.Empty<(RoutePatternPathSegment pathSegment, int segmentIndex)>(),
                     Array.Empty<KeyValuePair<string, IRouteConstraint>>());
             }
-        }
-
-        private int[] GetGroupLengths(DfaNode node)
-        {
-            var nodeMatches = node.Matches;
-            if (nodeMatches == null || nodeMatches.Count == 0)
-            {
-                return Array.Empty<int>();
-            }
-
-            var groups = new List<int>();
-
-            var length = 1;
-            var exemplar = nodeMatches[0];
-
-            for (var i = 1; i < nodeMatches.Count; i++)
-            {
-                if (!_comparer.Equals(exemplar, nodeMatches[i]))
-                {
-                    groups.Add(length);
-                    length = 0;
-
-                    exemplar = nodeMatches[i];
-                }
-
-                length++;
-            }
-
-            groups.Add(length);
-
-            return groups.ToArray();
         }
 
         private static bool HasAdditionalRequiredSegments(RouteEndpoint endpoint, int depth)

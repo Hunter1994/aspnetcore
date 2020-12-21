@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Text;
 using System.Text.Json;
@@ -27,7 +28,8 @@ namespace Microsoft.AspNetCore.Http
         /// <param name="request">The request to read from.</param>
         /// <param name="cancellationToken">A <see cref="CancellationToken"/> used to cancel the operation.</param>
         /// <returns>The task object representing the asynchronous operation.</returns>
-        public static ValueTask<TValue> ReadFromJsonAsync<TValue>(
+        [SuppressMessage("ApiDesign", "RS0026:Do not add multiple public overloads with optional parameters", Justification = "Required to maintain compatibility")]
+        public static ValueTask<TValue?> ReadFromJsonAsync<TValue>(
             this HttpRequest request,
             CancellationToken cancellationToken = default)
         {
@@ -43,7 +45,8 @@ namespace Microsoft.AspNetCore.Http
         /// <param name="options">The serializer options use when deserializing the content.</param>
         /// <param name="cancellationToken">A <see cref="CancellationToken"/> used to cancel the operation.</param>
         /// <returns>The task object representing the asynchronous operation.</returns>
-        public static async ValueTask<TValue> ReadFromJsonAsync<TValue>(
+        [SuppressMessage("ApiDesign", "RS0026:Do not add multiple public overloads with optional parameters", Justification = "Required to maintain compatibility")]
+        public static async ValueTask<TValue?> ReadFromJsonAsync<TValue>(
             this HttpRequest request,
             JsonSerializerOptions? options,
             CancellationToken cancellationToken = default)
@@ -84,6 +87,7 @@ namespace Microsoft.AspNetCore.Http
         /// <param name="type">The type of object to read.</param>
         /// <param name="cancellationToken">A <see cref="CancellationToken"/> used to cancel the operation.</param>
         /// <returns>The task object representing the asynchronous operation.</returns>
+        [SuppressMessage("ApiDesign", "RS0026:Do not add multiple public overloads with optional parameters", Justification = "Required to maintain compatibility")]
         public static ValueTask<object?> ReadFromJsonAsync(
             this HttpRequest request,
             Type type,
@@ -101,6 +105,7 @@ namespace Microsoft.AspNetCore.Http
         /// <param name="options">The serializer options use when deserializing the content.</param>
         /// <param name="cancellationToken">A <see cref="CancellationToken"/> used to cancel the operation.</param>
         /// <returns>The task object representing the asynchronous operation.</returns>
+        [SuppressMessage("ApiDesign", "RS0026:Do not add multiple public overloads with optional parameters", Justification = "Required to maintain compatibility")]
         public static async ValueTask<object?> ReadFromJsonAsync(
             this HttpRequest request,
             Type type,

@@ -7,8 +7,10 @@ param(
     [switch]$ci,
     # Optional arguments that enable downloading an internal
     # runtime or runtime from a non-default location
-    [string]$DotNetRuntimeSourceFeed,
-    [string]$DotNetRuntimeSourceFeedKey
+    [Alias('DotNetRuntimeSourceFeed')]
+    [string]$RuntimeSourceFeed,
+    [Alias('DotNetRuntimeSourceFeedKey')]
+    [string]$RuntimeSourceFeedKey
 )
 
 $ErrorActionPreference = 'Stop'
@@ -47,8 +49,8 @@ function LogError {
 try {
     if ($ci) {
         # Install dotnet.exe
-        if ($DotNetRuntimeSourceFeed -or $DotNetRuntimeSourceFeedKey) {
-            & $repoRoot/restore.cmd -ci -nobl -noBuildNodeJS -DotNetRuntimeSourceFeed $DotNetRuntimeSourceFeed -DotNetRuntimeSourceFeedKey $DotNetRuntimeSourceFeedKey
+        if ($RuntimeSourceFeed -or $RuntimeSourceFeedKey) {
+            & $repoRoot/restore.cmd -ci -nobl -noBuildNodeJS -RuntimeSourceFeed $RuntimeSourceFeed -RuntimeSourceFeedKey $RuntimeSourceFeedKey
         }
         else{
             & $repoRoot/restore.cmd -ci -nobl -noBuildNodeJS
@@ -108,7 +110,7 @@ try {
         else {
             $varName = $dep.Name -replace '\.',''
             $varName = $varName -replace '\-',''
-            $varName = "${varName}PackageVersion"
+            $varName = "${varName}Version"
 
             $versionVar = $versionProps.SelectSingleNode("//PropertyGroup[`@Label=`"Automated`"]/$varName")
             $actualVersion = $versionVar.InnerText
@@ -164,11 +166,6 @@ try {
     Write-Host "Re-generating project lists"
     Invoke-Block {
         & $PSScriptRoot\GenerateProjectList.ps1 -ci:$ci
-    }
-
-    Write-Host "Re-generating references assemblies"
-    Invoke-Block {
-        & $PSScriptRoot\GenerateReferenceAssemblies.ps1 -ci:$ci
     }
 
     Write-Host "Re-generating package baselines"

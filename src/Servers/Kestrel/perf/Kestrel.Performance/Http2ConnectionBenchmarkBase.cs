@@ -50,33 +50,30 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Performance
             _connectionPair = DuplexPipe.CreateConnectionPair(options, options);
 
             _httpRequestHeaders = new HttpRequestHeaders();
-            _httpRequestHeaders.Append(HeaderNames.Method, new StringValues("GET"));
-            _httpRequestHeaders.Append(HeaderNames.Path, new StringValues("/"));
-            _httpRequestHeaders.Append(HeaderNames.Scheme, new StringValues("http"));
-            _httpRequestHeaders.Append(HeaderNames.Authority, new StringValues("localhost:80"));
+            _httpRequestHeaders.HeaderMethod = new StringValues("GET");
+            _httpRequestHeaders.HeaderPath = new StringValues("/");
+            _httpRequestHeaders.HeaderScheme = new StringValues("http");
+            _httpRequestHeaders.HeaderAuthority = new StringValues("localhost:80");
 
             _headersBuffer = new byte[1024 * 16];
             _hpackEncoder = new HPackEncoder();
 
-            var serviceContext = new ServiceContext
-            {
-                DateHeaderValueManager = new DateHeaderValueManager(),
-                ServerOptions = new KestrelServerOptions(),
-                Log = new KestrelTrace(NullLogger.Instance),
-                SystemClock = new MockSystemClock()
-            };
+            var serviceContext = TestContextFactory.CreateServiceContext(
+                serverOptions: new KestrelServerOptions(),
+                dateHeaderValueManager: new DateHeaderValueManager(),
+                systemClock: new MockSystemClock(),
+                log: new MockTrace());
             serviceContext.DateHeaderValueManager.OnHeartbeat(default);
 
-            _connection = new Http2Connection(new HttpConnectionContext
-            {
-                MemoryPool = _memoryPool,
-                ConnectionId = "TestConnectionId",
-                Protocols = HttpProtocols.Http2,
-                Transport = _connectionPair.Transport,
-                ServiceContext = serviceContext,
-                ConnectionFeatures = new FeatureCollection(),
-                TimeoutControl = new MockTimeoutControl(),
-            });
+            var connectionContext = TestContextFactory.CreateHttpConnectionContext(
+                serviceContext: serviceContext,
+                connectionContext: null,
+                transport: _connectionPair.Transport,
+                timeoutControl: new MockTimeoutControl(),
+                memoryPool: _memoryPool,
+                connectionFeatures: new FeatureCollection());
+
+            _connection = new Http2Connection(connectionContext);
 
             _requestHeadersEnumerator = new Http2HeadersEnumerator();
 

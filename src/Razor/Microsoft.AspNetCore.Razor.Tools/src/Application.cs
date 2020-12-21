@@ -1,4 +1,4 @@
-﻿// Copyright (c) .NET Foundation. All rights reserved.
+// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
@@ -89,14 +89,14 @@ namespace Microsoft.AspNetCore.Razor.Tools
 
         private string GetInformationalVersion()
         {
-            var assembly = typeof(Application).GetTypeInfo().Assembly;
+            var assembly = typeof(Application).Assembly;
             var attribute = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>();
             return attribute.InformationalVersion;
         }
 
         private static string[] ExpandResponseFiles(string[] args)
         {
-            var expandedArgs = new List<string>();
+            var expandedArgs = new List<string>(args.Length);
             foreach (var arg in args)
             {
                 if (!arg.StartsWith("@", StringComparison.Ordinal))

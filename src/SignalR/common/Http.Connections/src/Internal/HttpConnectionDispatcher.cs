@@ -1,6 +1,8 @@
 // Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
+#nullable disable
+
 using System;
 using System.Buffers;
 using System.Collections.Generic;
@@ -578,7 +580,7 @@ namespace Microsoft.AspNetCore.Http.Connections.Internal
             if (oldContext.User.Identity is WindowsIdentity windowsIdentity)
             {
                 var skipFirstIdentity = false;
-                if (oldContext.User is WindowsPrincipal)
+                if (OperatingSystem.IsWindows() && oldContext.User is WindowsPrincipal)
                 {
                     // We want to explicitly create a WindowsPrincipal instead of a ClaimsPrincipal
                     // so methods that WindowsPrincipal overrides like 'IsInRole', work as expected.

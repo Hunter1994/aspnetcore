@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
@@ -14,6 +15,9 @@ using Microsoft.Net.Http.Headers;
 
 namespace Microsoft.AspNetCore.Authentication.Cookies
 {
+    /// <summary>
+    /// Implementation for the cookie-based authentication handler.
+    /// </summary>
     public class CookieAuthenticationHandler : SignInAuthenticationHandler<CookieAuthenticationOptions>
     {
         private const string HeaderValueNoCache = "no-cache";
@@ -27,10 +31,17 @@ namespace Microsoft.AspNetCore.Authentication.Cookies
 
         private DateTimeOffset? _refreshIssuedUtc;
         private DateTimeOffset? _refreshExpiresUtc;
-        private string _sessionKey;
-        private Task<AuthenticateResult> _readCookieTask;
-        private AuthenticationTicket _refreshTicket;
+        private string? _sessionKey;
+        private Task<AuthenticateResult>? _readCookieTask;
+        private AuthenticationTicket? _refreshTicket;
 
+        /// <summary>
+        /// Initializes a new instance of <see cref="CookieAuthenticationHandler"/>.
+        /// </summary>
+        /// <param name="options">Accessor to <see cref="CookieAuthenticationOptions"/>.</param>
+        /// <param name="logger">The <see cref="ILoggerFactory"/>.</param>
+        /// <param name="encoder">The <see cref="UrlEncoder"/>.</param>
+        /// <param name="clock">The <see cref="ISystemClock"/>.</param>
         public CookieAuthenticationHandler(IOptionsMonitor<CookieAuthenticationOptions> options, ILoggerFactory logger, UrlEncoder encoder, ISystemClock clock)
             : base(options, logger, encoder, clock)
         { }
@@ -41,10 +52,11 @@ namespace Microsoft.AspNetCore.Authentication.Cookies
         /// </summary>
         protected new CookieAuthenticationEvents Events
         {
-            get { return (CookieAuthenticationEvents)base.Events; }
+            get { return (CookieAuthenticationEvents)base.Events!; }
             set { base.Events = value; }
         }
 
+        /// <inheritdoc />
         protected override Task InitializeHandlerAsync()
         {
             // Cookies needs to finish the response
@@ -86,7 +98,7 @@ namespace Microsoft.AspNetCore.Authentication.Cookies
             }
         }
 
-        private void RequestRefresh(AuthenticationTicket ticket, ClaimsPrincipal replacedPrincipal = null)
+        private void RequestRefresh(AuthenticationTicket ticket, ClaimsPrincipal? replacedPrincipal = null)
         {
             var issuedUtc = ticket.Properties.IssuedUtc;
             var expiresUtc = ticket.Properties.ExpiresUtc;
@@ -102,7 +114,7 @@ namespace Microsoft.AspNetCore.Authentication.Cookies
             }
         }
 
-        private AuthenticationTicket CloneTicket(AuthenticationTicket ticket, ClaimsPrincipal replacedPrincipal)
+        private AuthenticationTicket CloneTicket(AuthenticationTicket ticket, ClaimsPrincipal? replacedPrincipal)
         {
             var principal = replacedPrincipal ?? ticket.Principal;
             var newPrincipal = new ClaimsPrincipal();
@@ -122,7 +134,7 @@ namespace Microsoft.AspNetCore.Authentication.Cookies
 
         private async Task<AuthenticateResult> ReadCookieTicket()
         {
-            var cookie = Options.CookieManager.GetRequestCookie(Context, Options.Cookie.Name);
+            var cookie = Options.CookieManager.GetRequestCookie(Context, Options.Cookie.Name!);
             if (string.IsNullOrEmpty(cookie))
             {
                 return AuthenticateResult.NoResult();
@@ -157,7 +169,7 @@ namespace Microsoft.AspNetCore.Authentication.Cookies
             {
                 if (Options.SessionStore != null)
                 {
-                    await Options.SessionStore.RemoveAsync(_sessionKey);
+                    await Options.SessionStore.RemoveAsync(_sessionKey!);
                 }
                 return AuthenticateResult.Fail("Ticket expired");
             }
@@ -168,6 +180,7 @@ namespace Microsoft.AspNetCore.Authentication.Cookies
             return AuthenticateResult.Success(ticket);
         }
 
+        /// <inheritdoc />
         protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
         {
             var result = await EnsureCookieTicket();
@@ -176,6 +189,7 @@ namespace Microsoft.AspNetCore.Authentication.Cookies
                 return result;
             }
 
+            Debug.Assert(result.Ticket != null);
             var context = new CookieValidatePrincipalContext(Context, Scheme, Options, result.Ticket);
             await Events.ValidatePrincipal(context);
 
@@ -201,6 +215,7 @@ namespace Microsoft.AspNetCore.Authentication.Cookies
             return cookieOptions;
         }
 
+        /// <inheritdoc />
         protected virtual async Task FinishResponseAsync()
         {
             // Only renew if requested, and neither sign in or sign out was called
@@ -244,7 +259,7 @@ namespace Microsoft.AspNetCore.Authentication.Cookies
 
                 Options.CookieManager.AppendResponseCookie(
                     Context,
-                    Options.Cookie.Name,
+                    Options.Cookie.Name!,
                     cookieValue,
                     cookieOptions);
 
@@ -252,7 +267,8 @@ namespace Microsoft.AspNetCore.Authentication.Cookies
             }
         }
 
-        protected async override Task HandleSignInAsync(ClaimsPrincipal user, AuthenticationProperties properties)
+        /// <inheritdoc />
+        protected async override Task HandleSignInAsync(ClaimsPrincipal user, AuthenticationProperties? properties)
         {
             if (user == null)
             {
@@ -299,7 +315,7 @@ namespace Microsoft.AspNetCore.Authentication.Cookies
                 signInContext.CookieOptions.Expires = expiresUtc.ToUniversalTime();
             }
 
-            var ticket = new AuthenticationTicket(signInContext.Principal, signInContext.Properties, signInContext.Scheme.Name);
+            var ticket = new AuthenticationTicket(signInContext.Principal!, signInContext.Properties, signInContext.Scheme.Name);
 
             if (Options.SessionStore != null)
             {
@@ -324,14 +340,14 @@ namespace Microsoft.AspNetCore.Authentication.Cookies
 
             Options.CookieManager.AppendResponseCookie(
                 Context,
-                Options.Cookie.Name,
+                Options.Cookie.Name!,
                 cookieValue,
                 signInContext.CookieOptions);
 
             var signedInContext = new CookieSignedInContext(
                 Context,
                 Scheme,
-                signInContext.Principal,
+                signInContext.Principal!,
                 signInContext.Properties,
                 Options);
 
@@ -344,7 +360,8 @@ namespace Microsoft.AspNetCore.Authentication.Cookies
             Logger.AuthenticationSchemeSignedIn(Scheme.Name);
         }
 
-        protected async override Task HandleSignOutAsync(AuthenticationProperties properties)
+        /// <inheritdoc />
+        protected async override Task HandleSignOutAsync(AuthenticationProperties? properties)
         {
             properties = properties ?? new AuthenticationProperties();
 
@@ -369,7 +386,7 @@ namespace Microsoft.AspNetCore.Authentication.Cookies
 
             Options.CookieManager.DeleteCookie(
                 Context,
-                Options.Cookie.Name,
+                Options.Cookie.Name!,
                 context.CookieOptions);
 
             // Only redirect on the logout path
@@ -424,6 +441,7 @@ namespace Microsoft.AspNetCore.Authentication.Cookies
             return path[0] == '/' && path[1] != '/' && path[1] != '\\';
         }
 
+        /// <inheritdoc />
         protected override async Task HandleForbiddenAsync(AuthenticationProperties properties)
         {
             var returnUrl = properties.RedirectUri;
@@ -436,6 +454,7 @@ namespace Microsoft.AspNetCore.Authentication.Cookies
             await Events.RedirectToAccessDenied(redirectContext);
         }
 
+        /// <inheritdoc />
         protected override async Task HandleChallengeAsync(AuthenticationProperties properties)
         {
             var redirectUri = properties.RedirectUri;
@@ -449,7 +468,7 @@ namespace Microsoft.AspNetCore.Authentication.Cookies
             await Events.RedirectToLogin(redirectContext);
         }
 
-        private string GetTlsTokenBinding()
+        private string? GetTlsTokenBinding()
         {
             var binding = Context.Features.Get<ITlsTokenBindingFeature>()?.GetProvidedTokenBindingId();
             return binding == null ? null : Convert.ToBase64String(binding);

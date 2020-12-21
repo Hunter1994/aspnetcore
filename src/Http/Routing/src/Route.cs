@@ -1,18 +1,25 @@
 // Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Microsoft.AspNetCore.Routing
 {
+    /// <summary>
+    /// Represents an instance of a route.
+    /// </summary>
     public class Route : RouteBase
     {
         private readonly IRouter _target;
 
+        /// <summary>
+        /// Constructs a new <see cref="Route"/> instance.
+        /// </summary>
+        /// <param name="target">An <see cref="IRouter"/> instance associated with the component.</param>
+        /// <param name="routeTemplate">A string representation of the route template.</param>
+        /// <param name="inlineConstraintResolver">An <see cref="IInlineConstraintResolver"/> used for resolving inline constraints.</param>
         public Route(
             IRouter target,
             string routeTemplate,
@@ -27,6 +34,15 @@ namespace Microsoft.AspNetCore.Routing
         {
         }
 
+        /// <summary>
+        /// Constructs a new <see cref="Route"/> instance.
+        /// </summary>
+        /// <param name="target">An <see cref="IRouter"/> instance associated with the component.</param>
+        /// <param name="routeTemplate">A string representation of the route template.</param>
+        /// <param name="defaults">The default values for parameters in the route.</param>
+        /// <param name="constraints">The constraints for the route.</param>
+        /// <param name="dataTokens">The data tokens for the route.</param>
+        /// <param name="inlineConstraintResolver">An <see cref="IInlineConstraintResolver"/> used for resolving inline constraints.</param>
         public Route(
             IRouter target,
             string routeTemplate,
@@ -38,6 +54,16 @@ namespace Microsoft.AspNetCore.Routing
         {
         }
 
+        /// <summary>
+        /// Constructs a new <see cref="Route"/> instance.
+        /// </summary>
+        /// <param name="target">An <see cref="IRouter"/> instance associated with the component.</param>
+        /// <param name="routeName">The name of the route.</param>
+        /// <param name="routeTemplate">A string representation of the route template.</param>
+        /// <param name="defaults">The default values for parameters in the route.</param>
+        /// <param name="constraints">The constraints for the route.</param>
+        /// <param name="dataTokens">The data tokens for the route.</param>
+        /// <param name="inlineConstraintResolver">An <see cref="IInlineConstraintResolver"/> used for resolving inline constraints.</param>
         public Route(
             IRouter target,
             string? routeName,
@@ -47,11 +73,11 @@ namespace Microsoft.AspNetCore.Routing
             RouteValueDictionary? dataTokens,
             IInlineConstraintResolver inlineConstraintResolver)
             : base(
-                  routeTemplate, 
-                  routeName, 
-                  inlineConstraintResolver, 
-                  defaults, 
-                  constraints, 
+                  routeTemplate,
+                  routeName,
+                  inlineConstraintResolver,
+                  defaults,
+                  constraints,
                   dataTokens)
         {
             if (target == null)
@@ -62,14 +88,19 @@ namespace Microsoft.AspNetCore.Routing
             _target = target;
         }
 
-        public string RouteTemplate => ParsedTemplate.TemplateText;
+        /// <summary>
+        /// Gets a string representation of the route template.
+        /// </summary>
+        public string? RouteTemplate => ParsedTemplate.TemplateText;
 
+        /// <inheritdoc />
         protected override Task OnRouteMatched(RouteContext context)
         {
             context.RouteData.Routers.Add(_target);
             return _target.RouteAsync(context);
         }
 
+        /// <inheritdoc />
         protected override VirtualPathData? OnVirtualPathGenerated(VirtualPathContext context)
         {
             return _target.GetVirtualPath(context);

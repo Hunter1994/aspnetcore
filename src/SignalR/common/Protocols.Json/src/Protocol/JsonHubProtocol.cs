@@ -1,6 +1,8 @@
 // Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
+#nullable disable
+
 using System;
 using System.Buffers;
 using System.Collections.Generic;
@@ -516,7 +518,7 @@ namespace Microsoft.AspNetCore.SignalR.Protocol
                 }
                 else
                 {
-                    JsonSerializer.Serialize(writer, message.Result, message.Result?.GetType(), _payloadSerializerOptions);
+                    JsonSerializer.Serialize(writer, message.Result, message.Result.GetType(), _payloadSerializerOptions);
                 }
             }
         }
@@ -537,7 +539,7 @@ namespace Microsoft.AspNetCore.SignalR.Protocol
             }
             else
             {
-                JsonSerializer.Serialize(writer, message.Item, message.Item?.GetType(), _payloadSerializerOptions);
+                JsonSerializer.Serialize(writer, message.Item, message.Item.GetType(), _payloadSerializerOptions);
             }
         }
 
@@ -585,7 +587,7 @@ namespace Microsoft.AspNetCore.SignalR.Protocol
                 }
                 else
                 {
-                    JsonSerializer.Serialize(writer, argument, argument?.GetType(), _payloadSerializerOptions);
+                    JsonSerializer.Serialize(writer, argument, argument.GetType(), _payloadSerializerOptions);
                 }
             }
             writer.WriteEndArray();

@@ -71,10 +71,11 @@ namespace Microsoft.AspNetCore.Http
         }
 
         /// <summary>
-        /// Not supported.
+        /// Opts out of write buffering for the response.
         /// </summary>
         public virtual void DisableBuffering()
         {
+            PriorFeature?.DisableBuffering();
         }
 
         /// <summary>
@@ -111,7 +112,7 @@ namespace Microsoft.AspNetCore.Http
         }
 
         /// <summary>
-        /// This calls StartAsync if it has not previoulsy been called.
+        /// This calls StartAsync if it has not previously been called.
         /// It will complete the adapted pipe if it exists.
         /// </summary>
         /// <returns></returns>
@@ -126,6 +127,11 @@ namespace Microsoft.AspNetCore.Http
             if (_completed)
             {
                 return;
+            }
+
+            if (!_started)
+            {
+                await StartAsync();
             }
 
             _completed = true;

@@ -8,7 +8,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Components.Profiling;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -22,7 +21,7 @@ namespace Microsoft.AspNetCore.Components.RenderTree
     //
     // Provides mechanisms for rendering hierarchies of <see cref="IComponent"/> instances,
     // dispatching events to them, and notifying when the user interface is being updated.
-    public abstract partial class Renderer : IDisposable
+    public abstract partial class Renderer : IDisposable, IAsyncDisposable
     {
         private readonly IServiceProvider _serviceProvider;
         private readonly Dictionary<int, ComponentState> _componentStateById = new Dictionary<int, ComponentState>();
@@ -37,6 +36,7 @@ namespace Microsoft.AspNetCore.Components.RenderTree
         private ulong _lastEventHandlerId;
         private List<Task> _pendingTasks;
         private bool _disposed;
+        private Task _disposeTask;
 
         /// <summary>
         /// Allows the caller to handle exceptions from the SynchronizationContext when one is available.
@@ -245,9 +245,8 @@ namespace Microsoft.AspNetCore.Components.RenderTree
         /// A <see cref="Task"/> which will complete once all asynchronous processing related to the event
         /// has completed.
         /// </returns>
-        public virtual Task DispatchEventAsync(ulong eventHandlerId, EventFieldInfo fieldInfo, EventArgs eventArgs)
+        public virtual Task DispatchEventAsync(ulong eventHandlerId, EventFieldInfo? fieldInfo, EventArgs eventArgs)
         {
-            ComponentsProfiling.Instance.Start();
             Dispatcher.AssertAccess();
 
             if (!_eventBindings.TryGetValue(eventHandlerId, out var callback))
@@ -275,7 +274,6 @@ namespace Microsoft.AspNetCore.Components.RenderTree
             catch (Exception e)
             {
                 HandleException(e);
-                ComponentsProfiling.Instance.End();
                 return Task.CompletedTask;
             }
             finally
@@ -290,25 +288,25 @@ namespace Microsoft.AspNetCore.Components.RenderTree
             // Task completed synchronously or is still running. We already processed all of the rendering
             // work that was queued so let our error handler deal with it.
             var result = GetErrorHandledTask(task);
-            ComponentsProfiling.Instance.End();
             return result;
         }
 
         internal void InstantiateChildComponentOnFrame(ref RenderTreeFrame frame, int parentComponentId)
         {
-            if (frame.FrameType != RenderTreeFrameType.Component)
+            if (frame.FrameTypeField != RenderTreeFrameType.Component)
             {
                 throw new ArgumentException($"The frame's {nameof(RenderTreeFrame.FrameType)} property must equal {RenderTreeFrameType.Component}", nameof(frame));
             }
 
-            if (frame.ComponentState != null)
+            if (frame.ComponentStateField != null)
             {
                 throw new ArgumentException($"The frame already has a non-null component instance", nameof(frame));
             }
 
-            var newComponent = InstantiateComponent(frame.ComponentType);
+            var newComponent = InstantiateComponent(frame.ComponentTypeField);
             var newComponentState = AttachAndInitComponent(newComponent, parentComponentId);
-            frame = frame.WithComponent(newComponentState);
+            frame.ComponentStateField = newComponentState;
+            frame.ComponentIdField = newComponentState.ComponentId;
         }
 
         internal void AddToPendingTasks(Task task)
@@ -346,7 +344,7 @@ namespace Microsoft.AspNetCore.Components.RenderTree
         {
             var id = ++_lastEventHandlerId;
 
-            if (frame.AttributeValue is EventCallback callback)
+            if (frame.AttributeValueField is EventCallback callback)
             {
                 // We hit this case when a EventCallback object is produced that needs an explicit receiver.
                 // Common cases for this are "chained bind" or "chained event handler" when a component
@@ -356,7 +354,7 @@ namespace Microsoft.AspNetCore.Components.RenderTree
                 // the receiver.
                 _eventBindings.Add(id, callback);
             }
-            else if (frame.AttributeValue is MulticastDelegate @delegate)
+            else if (frame.AttributeValueField is MulticastDelegate @delegate)
             {
                 // This is the common case for a delegate, where the receiver of the event
                 // is the same as delegate.Target. In this case since the receiver is implicit we can
@@ -368,7 +366,7 @@ namespace Microsoft.AspNetCore.Components.RenderTree
             // NOTE: we do not to handle EventCallback<T> here. EventCallback<T> is only used when passing
             // a callback to a component, and never when used to attaching a DOM event handler.
 
-            frame = frame.WithAttributeEventHandlerId(id);
+            frame.AttributeEventHandlerIdField = id;
         }
 
         /// <summary>
@@ -441,7 +439,6 @@ namespace Microsoft.AspNetCore.Components.RenderTree
 
         private void ProcessRenderQueue()
         {
-            ComponentsProfiling.Instance.Start();
             Dispatcher.AssertAccess();
 
             if (_isBatchInProgress)
@@ -456,7 +453,6 @@ namespace Microsoft.AspNetCore.Components.RenderTree
             {
                 if (_batchBuilder.ComponentRenderQueue.Count == 0)
                 {
-                    ComponentsProfiling.Instance.End();
                     return;
                 }
 
@@ -468,9 +464,7 @@ namespace Microsoft.AspNetCore.Components.RenderTree
                 }
 
                 var batch = _batchBuilder.ToBatch();
-                ComponentsProfiling.Instance.Start(nameof(UpdateDisplayAsync));
                 updateDisplayTask = UpdateDisplayAsync(batch);
-                ComponentsProfiling.Instance.End(nameof(UpdateDisplayAsync));
 
                 // Fire off the execution of OnAfterRenderAsync, but don't wait for it
                 // if there is async work to be done.
@@ -480,7 +474,6 @@ namespace Microsoft.AspNetCore.Components.RenderTree
             {
                 // Ensure we catch errors while running the render functions of the components.
                 HandleException(e);
-                ComponentsProfiling.Instance.End();
                 return;
             }
             finally
@@ -498,7 +491,6 @@ namespace Microsoft.AspNetCore.Components.RenderTree
             {
                 ProcessRenderQueue();
             }
-            ComponentsProfiling.Instance.End();
         }
 
         private Task InvokeRenderCompletedCalls(ArrayRange<RenderTreeDiff> updatedComponents, Task updateDisplayTask)
@@ -634,11 +626,43 @@ namespace Microsoft.AspNetCore.Components.RenderTree
                 var disposeComponentId = _batchBuilder.ComponentDisposalQueue.Dequeue();
                 var disposeComponentState = GetRequiredComponentState(disposeComponentId);
                 Log.DisposingComponent(_logger, disposeComponentState);
-                if (!disposeComponentState.TryDisposeInBatch(_batchBuilder, out var exception))
+                if (!(disposeComponentState.Component is IAsyncDisposable))
                 {
-                    exceptions ??= new List<Exception>();
-                    exceptions.Add(exception);
+                    if (!disposeComponentState.TryDisposeInBatch(_batchBuilder, out var exception))
+                    {
+                        exceptions ??= new List<Exception>();
+                        exceptions.Add(exception);
+                    }
                 }
+                else
+                {
+                    var result = disposeComponentState.DisposeInBatchAsync(_batchBuilder);
+                    if (result.IsCompleted)
+                    {
+                        if (!result.IsCompletedSuccessfully)
+                        {
+                            exceptions ??= new List<Exception>();
+                            exceptions.Add(result.Exception);
+                        }
+                    }
+                    else
+                    {
+                        AddToPendingTasks(GetHandledAsynchronousDisposalErrorsTask(result));
+
+                        async Task GetHandledAsynchronousDisposalErrorsTask(Task result)
+                        {
+                            try
+                            {
+                                await result;
+                            }
+                            catch (Exception e)
+                            {
+                                HandleException(e);
+                            }
+                        }
+                    }
+                }
+
                 _componentStateById.Remove(disposeComponentId);
                 _batchBuilder.DisposedComponentIds.Append(disposeComponentId);
             }
@@ -740,11 +764,34 @@ namespace Microsoft.AspNetCore.Components.RenderTree
             // It's important that we handle all exceptions here before reporting any of them.
             // This way we can dispose all components before an error handler kicks in.
             List<Exception> exceptions = null;
+            List<Task> asyncDisposables = null;
             foreach (var componentState in _componentStateById.Values)
             {
                 Log.DisposingComponent(_logger, componentState);
 
-                if (componentState.Component is IDisposable disposable)
+                // Components shouldn't need to implement IAsyncDisposable and IDisposable simultaneously,
+                // but in case they do, we prefer the async overload since we understand the sync overload
+                // is implemented for more "constrained" scenarios.
+                // Component authors are responsible for their IAsyncDisposable implementations not taking
+                // forever.
+                if (componentState.Component is IAsyncDisposable asyncDisposable)
+                {
+                    try
+                    {
+                        var task = asyncDisposable.DisposeAsync();
+                        if (!task.IsCompletedSuccessfully)
+                        {
+                            asyncDisposables ??= new();
+                            asyncDisposables.Add(task.AsTask());
+                        }
+                    }
+                    catch (Exception exception)
+                    {
+                        exceptions ??= new List<Exception>();
+                        exceptions.Add(exception);
+                    }
+                }
+                else if (componentState.Component is IDisposable disposable)
                 {
                     try
                     {
@@ -761,13 +808,42 @@ namespace Microsoft.AspNetCore.Components.RenderTree
             _componentStateById.Clear(); // So we know they were all disposed
             _batchBuilder.Dispose();
 
-            if (exceptions?.Count > 1)
+            NotifyExceptions(exceptions);
+
+            if (asyncDisposables?.Count >= 1)
             {
-                HandleException(new AggregateException("Exceptions were encountered while disposing components.", exceptions));
+                _disposeTask = HandleAsyncExceptions(asyncDisposables);
             }
-            else if (exceptions?.Count == 1)
+
+            async Task HandleAsyncExceptions(List<Task> tasks)
             {
-                HandleException(exceptions[0]);
+                List<Exception> asyncExceptions = null;
+                foreach (var task in tasks)
+                {
+                    try
+                    {
+                        await task;
+                    }
+                    catch (Exception exception)
+                    {
+                        asyncExceptions ??= new List<Exception>();
+                        asyncExceptions.Add(exception);
+                    }
+                }
+
+                NotifyExceptions(asyncExceptions);
+            }
+
+            void NotifyExceptions(List<Exception> exceptions)
+            {
+                if (exceptions?.Count > 1)
+                {
+                    HandleException(new AggregateException("Exceptions were encountered while disposing components.", exceptions));
+                }
+                else if (exceptions?.Count == 1)
+                {
+                    HandleException(exceptions[0]);
+                }
             }
         }
 
@@ -777,6 +853,32 @@ namespace Microsoft.AspNetCore.Components.RenderTree
         public void Dispose()
         {
             Dispose(disposing: true);
+        }
+
+        /// <inheritdoc />
+        public async ValueTask DisposeAsync()
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            if (_disposeTask != null)
+            {
+                await _disposeTask;
+            }
+            else
+            {
+                Dispose();
+                if (_disposeTask != null)
+                {
+                    await _disposeTask;
+                }
+                else
+                {
+                    await default(ValueTask);
+                }
+            }
         }
     }
 }

@@ -46,15 +46,22 @@ namespace Microsoft.AspNetCore.Components
         /// </summary>
         /// <param name="arg">The argument.</param>
         /// <returns>A <see cref="Task"/> which completes asynchronously once event processing has completed.</returns>
-        public Task InvokeAsync(TValue arg)
+        public Task InvokeAsync(TValue? arg)
         {
             if (Receiver == null)
             {
-                return EventCallbackWorkItem.InvokeAsync<TValue>(Delegate, arg);
+                return EventCallbackWorkItem.InvokeAsync<TValue?>(Delegate, arg);
             }
 
             return Receiver.HandleEventAsync(new EventCallbackWorkItem(Delegate), arg);
         }
+
+        /// <summary>
+        /// Invokes the delegate associated with this binding and dispatches an event notification to the
+        /// appropriate component.
+        /// </summary>
+        /// <returns>A <see cref="Task"/> which completes asynchronously once event processing has completed.</returns>
+        public Task InvokeAsync() => InvokeAsync(default!);
 
         internal EventCallback AsUntyped()
         {

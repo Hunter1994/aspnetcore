@@ -16,7 +16,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Infrastructure
         private readonly IDebugger _debugger;
         private readonly IKestrelTrace _trace;
         private readonly TimeSpan _interval;
-        private Thread _timerThread;
+        private readonly Thread _timerThread;
         private volatile bool _stopped;
 
         public Heartbeat(IHeartbeatHandler[] callbacks, ISystemClock systemClock, IDebugger debugger, IKestrelTrace trace)
@@ -26,7 +26,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Infrastructure
             _debugger = debugger;
             _trace = trace;
             _interval = Interval;
-            _timerThread = new Thread(state => ((Heartbeat)state).TimerLoop())
+            _timerThread = new Thread(state => ((Heartbeat)state!).TimerLoop())
             {
                 Name = "Kestrel Timer",
                 IsBackground = true

@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>$(DefaultNetCoreTargetFramework)</TargetFramework>
@@ -6,11 +6,15 @@
     <PackageTags>wasm;javascript;interop</PackageTags>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <IsShippingPackage>true</IsShippingPackage>
+    <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="$(ComponentsSharedSourceRoot)src\WebAssemblyJSInteropInternalCalls.cs" />
     <Reference Include="Microsoft.JSInterop" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="$(SharedSourceRoot)JSInterop\*.cs" />
   </ItemGroup>
 
 </Project>

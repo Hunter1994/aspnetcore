@@ -19,6 +19,7 @@ namespace Microsoft.AspNetCore.Razor.Tasks
         // From https://github.com/dotnet/corefx/blob/29cd6a0b0ac2993cee23ebaf36ca3d4bce6dd75f/src/System.IO.Pipes/ref/System.IO.Pipes.cs#L93.
         // Using the enum value directly as this option is not available in netstandard.
         private const PipeOptions PipeOptionCurrentUserOnly = (PipeOptions)536870912;
+        private string _dotnetPath;
 
         private CancellationTokenSource _razorServerCts;
 
@@ -49,17 +50,21 @@ namespace Microsoft.AspNetCore.Razor.Tasks
 
         internal abstract string Command { get; }
 
-        protected override string GenerateFullPathToTool()
-        {
-#if NETSTANDARD2_0
-            if (!string.IsNullOrEmpty(DotNetMuxer.MuxerPath))
-            {
-                return DotNetMuxer.MuxerPath;
-            }
-#endif
+        protected override string GenerateFullPathToTool() => DotNetPath;
 
-            // use PATH to find dotnet
-            return ToolExe;
+        private string DotNetPath
+        {
+            get
+            {
+                if (!string.IsNullOrEmpty(_dotnetPath))
+                {
+                    return _dotnetPath;
+                }
+
+                _dotnetPath = Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") ?? ToolExe;
+
+                return _dotnetPath;
+            }
         }
 
         protected override string GenerateCommandLineCommands()

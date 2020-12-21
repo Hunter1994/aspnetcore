@@ -1,4 +1,4 @@
-﻿// Copyright (c) .NET Foundation. All rights reserved.
+// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
@@ -64,6 +64,7 @@ namespace Microsoft.AspNetCore.Razor.Design.IntegrationTests
 
             Assert.BuildPassed(result);
 
+            Assert.FileExists(result, PublishOutputPath, Path.Combine("wwwroot", "_content", "ClassLibrary", "ClassLibrary.bundle.scp.css"));
             Assert.FileExists(result, PublishOutputPath, Path.Combine("wwwroot", "_content", "ClassLibrary", "js", "project-transitive-dep.js"));
             Assert.FileExists(result, PublishOutputPath, Path.Combine("wwwroot", "_content", "ClassLibrary", "js", "project-transitive-dep.v4.js"));
             Assert.FileExists(result, PublishOutputPath, Path.Combine("wwwroot", "_content", "ClassLibrary2", "css", "site.css"));
@@ -71,6 +72,7 @@ namespace Microsoft.AspNetCore.Razor.Design.IntegrationTests
             Assert.FileExists(result, PublishOutputPath, Path.Combine("wwwroot", "_content", "PackageLibraryDirectDependency", "css", "site.css"));
             Assert.FileExists(result, PublishOutputPath, Path.Combine("wwwroot", "_content", "PackageLibraryDirectDependency", "js", "pkg-direct-dep.js"));
             Assert.FileExists(result, PublishOutputPath, Path.Combine("wwwroot", "_content", "PackageLibraryTransitiveDependency", "js", "pkg-transitive-dep.js"));
+            Assert.FileExists(result, PublishOutputPath, Path.Combine("wwwroot", "AppWithPackageAndP2PReference.styles.css"));
 
             // Validate that static web assets don't get published as content too on their regular path
             Assert.FileDoesNotExist(result, PublishOutputPath, Path.Combine("wwwroot", "js", "project-transitive-dep.js"));
@@ -88,25 +90,26 @@ namespace Microsoft.AspNetCore.Razor.Design.IntegrationTests
             var result = await DotnetMSBuild("Publish", $"/restore /p:PublishSingleFile=true /p:ReferenceLocallyBuiltPackages=true");
 
             Assert.BuildPassed(result);
-            var publishOutputPath = GetRidSpecificPublishOutputPath("win-x64");
-            Assert.FileExists(result, publishOutputPath, Path.Combine("wwwroot", "_content", "ClassLibrary", "js", "project-transitive-dep.js"));
-            Assert.FileExists(result, publishOutputPath, Path.Combine("wwwroot", "_content", "ClassLibrary", "js", "project-transitive-dep.v4.js"));
-            Assert.FileExists(result, publishOutputPath, Path.Combine("wwwroot", "_content", "ClassLibrary2", "css", "site.css"));
-            Assert.FileExists(result, publishOutputPath, Path.Combine("wwwroot", "_content", "ClassLibrary2", "js", "project-direct-dep.js"));
-            Assert.FileExists(result, publishOutputPath, Path.Combine("wwwroot", "_content", "PackageLibraryDirectDependency", "css", "site.css"));
-            Assert.FileExists(result, publishOutputPath, Path.Combine("wwwroot", "_content", "PackageLibraryDirectDependency", "js", "pkg-direct-dep.js"));
-            Assert.FileExists(result, publishOutputPath, Path.Combine("wwwroot", "_content", "PackageLibraryTransitiveDependency", "js", "pkg-transitive-dep.js"));
+            var publishOutputPathWithRID = GetRidSpecificPublishOutputPath("win-x64");
+            Assert.FileExists(result, publishOutputPathWithRID, Path.Combine("wwwroot", "_content", "ClassLibrary", "ClassLibrary.bundle.scp.css"));
+            Assert.FileExists(result, publishOutputPathWithRID, Path.Combine("wwwroot", "_content", "ClassLibrary", "js", "project-transitive-dep.js"));
+            Assert.FileExists(result, publishOutputPathWithRID, Path.Combine("wwwroot", "_content", "ClassLibrary", "js", "project-transitive-dep.v4.js"));
+            Assert.FileExists(result, publishOutputPathWithRID, Path.Combine("wwwroot", "_content", "ClassLibrary2", "css", "site.css"));
+            Assert.FileExists(result, publishOutputPathWithRID, Path.Combine("wwwroot", "_content", "ClassLibrary2", "js", "project-direct-dep.js"));
+            Assert.FileExists(result, publishOutputPathWithRID, Path.Combine("wwwroot", "_content", "PackageLibraryDirectDependency", "css", "site.css"));
+            Assert.FileExists(result, publishOutputPathWithRID, Path.Combine("wwwroot", "_content", "PackageLibraryDirectDependency", "js", "pkg-direct-dep.js"));
+            Assert.FileExists(result, publishOutputPathWithRID, Path.Combine("wwwroot", "_content", "PackageLibraryTransitiveDependency", "js", "pkg-transitive-dep.js"));
+            Assert.FileExists(result, publishOutputPathWithRID, Path.Combine("wwwroot", "AppWithPackageAndP2PReferenceAndRID.styles.css"));
 
             // Validate that static web assets don't get published as content too on their regular path
-            Assert.FileDoesNotExist(result, publishOutputPath, Path.Combine("wwwroot", "js", "project-transitive-dep.js"));
-            Assert.FileDoesNotExist(result, publishOutputPath, Path.Combine("wwwroot", "js", "project-transitive-dep.v4.js"));
+            Assert.FileDoesNotExist(result, publishOutputPathWithRID, Path.Combine("wwwroot", "js", "project-transitive-dep.js"));
+            Assert.FileDoesNotExist(result, publishOutputPathWithRID, Path.Combine("wwwroot", "js", "project-transitive-dep.v4.js"));
 
             // Validate that the manifest never gets copied
-            Assert.FileDoesNotExist(result, publishOutputPath, "AppWithPackageAndP2PReference.StaticWebAssets.xml");
+            Assert.FileDoesNotExist(result, publishOutputPathWithRID, "AppWithPackageAndP2PReference.StaticWebAssets.xml");
         }
 
         [Fact]
-        [QuarantinedTest]
         [InitializeTestProject("AppWithPackageAndP2PReference", additionalProjects: new[] { "ClassLibrary", "ClassLibrary2" })]
         public async Task Publish_WithBuildReferencesDisabled_CopiesStaticWebAssetsToDestinationFolder()
         {
@@ -118,6 +121,7 @@ namespace Microsoft.AspNetCore.Razor.Design.IntegrationTests
 
             Assert.BuildPassed(publish);
 
+            Assert.FileExists(publish, PublishOutputPath, Path.Combine("wwwroot", "_content", "ClassLibrary", "ClassLibrary.bundle.scp.css"));
             Assert.FileExists(publish, PublishOutputPath, Path.Combine("wwwroot", "_content", "ClassLibrary", "js", "project-transitive-dep.js"));
             Assert.FileExists(publish, PublishOutputPath, Path.Combine("wwwroot", "_content", "ClassLibrary", "js", "project-transitive-dep.v4.js"));
             Assert.FileExists(publish, PublishOutputPath, Path.Combine("wwwroot", "_content", "ClassLibrary2", "css", "site.css"));
@@ -125,10 +129,10 @@ namespace Microsoft.AspNetCore.Razor.Design.IntegrationTests
             Assert.FileExists(publish, PublishOutputPath, Path.Combine("wwwroot", "_content", "PackageLibraryDirectDependency", "css", "site.css"));
             Assert.FileExists(publish, PublishOutputPath, Path.Combine("wwwroot", "_content", "PackageLibraryDirectDependency", "js", "pkg-direct-dep.js"));
             Assert.FileExists(publish, PublishOutputPath, Path.Combine("wwwroot", "_content", "PackageLibraryTransitiveDependency", "js", "pkg-transitive-dep.js"));
+            Assert.FileExists(publish, PublishOutputPath, Path.Combine("wwwroot", "AppWithPackageAndP2PReference.styles.css"));
         }
 
         [Fact]
-        [QuarantinedTest("https://github.com/dotnet/aspnetcore/issues/22049")]
         [InitializeTestProject("AppWithPackageAndP2PReference", additionalProjects: new[] { "ClassLibrary", "ClassLibrary2" })]
         public async Task Publish_NoBuild_CopiesStaticWebAssetsToDestinationFolder()
         {
@@ -140,6 +144,7 @@ namespace Microsoft.AspNetCore.Razor.Design.IntegrationTests
 
             Assert.BuildPassed(publish);
 
+            Assert.FileExists(publish, PublishOutputPath, Path.Combine("wwwroot", "_content", "ClassLibrary", "ClassLibrary.bundle.scp.css"));
             Assert.FileExists(publish, PublishOutputPath, Path.Combine("wwwroot", "_content", "ClassLibrary", "js", "project-transitive-dep.js"));
             Assert.FileExists(publish, PublishOutputPath, Path.Combine("wwwroot", "_content", "ClassLibrary", "js", "project-transitive-dep.v4.js"));
             Assert.FileExists(publish, PublishOutputPath, Path.Combine("wwwroot", "_content", "ClassLibrary2", "css", "site.css"));
@@ -147,6 +152,7 @@ namespace Microsoft.AspNetCore.Razor.Design.IntegrationTests
             Assert.FileExists(publish, PublishOutputPath, Path.Combine("wwwroot", "_content", "PackageLibraryDirectDependency", "css", "site.css"));
             Assert.FileExists(publish, PublishOutputPath, Path.Combine("wwwroot", "_content", "PackageLibraryDirectDependency", "js", "pkg-direct-dep.js"));
             Assert.FileExists(publish, PublishOutputPath, Path.Combine("wwwroot", "_content", "PackageLibraryTransitiveDependency", "js", "pkg-transitive-dep.js"));
+            Assert.FileExists(publish, PublishOutputPath, Path.Combine("wwwroot", "AppWithPackageAndP2PReference.styles.css"));
         }
 
         [Fact]
@@ -166,7 +172,18 @@ namespace Microsoft.AspNetCore.Razor.Design.IntegrationTests
         }
 
         [Fact]
-        [QuarantinedTest("https://github.com/dotnet/aspnetcore/issues/23756")]
+        [InitializeTestProject("AppWithPackageAndP2PReference", language: "C#", additionalProjects: new[] { "ClassLibrary", "ClassLibrary2" })]
+        public async Task Build_Fails_WhenConflictingAssetsFoundBetweenAStaticWebAssetAndAFileInTheWebRootFolder()
+        {
+            Directory.CreateDirectory(Path.Combine(Project.DirectoryPath, "wwwroot", "_content", "ClassLibrary", "js"));
+            File.WriteAllText(Path.Combine(Project.DirectoryPath, "wwwroot", "_content", "ClassLibrary", "js", "project-transitive-dep.js"), "console.log('transitive-dep');");
+
+            var result = await DotnetMSBuild("Build");
+
+            Assert.BuildFailed(result);
+        }
+
+        [Fact]
         [InitializeTestProject("AppWithPackageAndP2PReference", language: "C#", additionalProjects: new[] { "ClassLibrary", "ClassLibrary2" })]
         public async Task Clean_Success_RemovesManifestAndCache()
         {
@@ -293,15 +310,19 @@ namespace Microsoft.AspNetCore.Razor.Design.IntegrationTests
             {
                 Path.Combine(restorePath, "packagelibrarytransitivedependency", "1.0.0", "build", "..", "staticwebassets") + Path.DirectorySeparatorChar,
                 Path.Combine(restorePath, "packagelibrarydirectdependency", "1.0.0", "build", "..", "staticwebassets") + Path.DirectorySeparatorChar,
+                Path.GetFullPath(Path.Combine(source, "ClassLibrary2", "wwwroot")) + Path.DirectorySeparatorChar,
                 Path.GetFullPath(Path.Combine(source, "ClassLibrary", "wwwroot")) + Path.DirectorySeparatorChar,
-                Path.GetFullPath(Path.Combine(source, "ClassLibrary2", "wwwroot")) + Path.DirectorySeparatorChar
+                Path.GetFullPath(Path.Combine(source, "ClassLibrary", IntermediateOutputPath, "scopedcss", "projectbundle")) + Path.DirectorySeparatorChar,
+                Path.GetFullPath(Path.Combine(source, "AppWithPackageAndP2PReference", IntermediateOutputPath, "scopedcss", "bundle")) + Path.DirectorySeparatorChar,
             };
 
             return $@"<StaticWebAssets Version=""1.0"">
-  <ContentRoot BasePath=""_content/ClassLibrary"" Path=""{projects[2]}"" />
-  <ContentRoot BasePath=""_content/ClassLibrary2"" Path=""{projects[3]}"" />
+  <ContentRoot BasePath=""_content/ClassLibrary"" Path=""{projects[4]}"" />
+  <ContentRoot BasePath=""_content/ClassLibrary"" Path=""{projects[3]}"" />
+  <ContentRoot BasePath=""_content/ClassLibrary2"" Path=""{projects[2]}"" />
   <ContentRoot BasePath=""_content/PackageLibraryDirectDependency"" Path=""{projects[1]}"" />
   <ContentRoot BasePath=""_content/PackageLibraryTransitiveDependency"" Path=""{projects[0]}"" />
+  <ContentRoot BasePath=""/"" Path=""{projects[5]}"" />
 </StaticWebAssets>";
         }
     }

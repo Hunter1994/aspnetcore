@@ -16,7 +16,7 @@ namespace Microsoft.AspNetCore.Razor.Language
             {
                 throw new ArgumentException(Resources.ArgumentCannotBeNullOrEmpty, nameof(root));
             }
-            
+
             Root = root.Replace('\\', '/').TrimEnd('/');
         }
 
@@ -40,7 +40,7 @@ namespace Microsoft.AspNetCore.Razor.Language
                     var relativePhysicalPath = file.FullName.Substring(absoluteBasePath.Length + 1); // Include leading separator
                     var filePath = "/" + relativePhysicalPath.Replace(Path.DirectorySeparatorChar, '/');
 
-                    return new DefaultRazorProjectItem(basePath, filePath, relativePhysicalPath, fileKind: null, file);
+                    return new DefaultRazorProjectItem(basePath, filePath, relativePhysicalPath, fileKind: null, file, cssScope: null);
                 });
         }
 
@@ -58,10 +58,10 @@ namespace Microsoft.AspNetCore.Razor.Language
             var relativePhysicalPath = file.FullName.Substring(absoluteBasePath.Length + 1); // Include leading separator
             var filePath = "/" + relativePhysicalPath.Replace(Path.DirectorySeparatorChar, '/');
 
-            return new DefaultRazorProjectItem("/", filePath, relativePhysicalPath, fileKind, new FileInfo(absolutePath));
+            return new DefaultRazorProjectItem("/", filePath, relativePhysicalPath, fileKind, new FileInfo(absolutePath), cssScope: null);
         }
 
-        [Obsolete("Use GetItem(string path, string fileKind) instead.")]
+
         public override RazorProjectItem GetItem(string path)
         {
             return GetItem(path, fileKind: null);

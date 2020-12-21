@@ -3,7 +3,6 @@
 
 using System;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
@@ -35,7 +34,7 @@ namespace FunctionalTests
                     webHostBuilder
                     .ConfigureLogging(factory =>
                     {
-                        factory.AddConsole(options =>
+                        factory.AddSimpleConsole(options =>
                         {
                             options.IncludeScopes = true;
                             options.TimestampFormat = "[HH:mm:ss] ";
@@ -49,7 +48,7 @@ namespace FunctionalTests
                         options.ConfigureHttpsDefaults(httpsOptions =>
                         {
                             bool useRSA = false;
-                            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                            if (OperatingSystem.IsWindows())
                             {
                                 // Detect Win10+
                                 var key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion");

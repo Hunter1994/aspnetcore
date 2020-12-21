@@ -3,6 +3,7 @@
 
 using System;
 using System.Buffers;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace Microsoft.AspNetCore.Server.IIS.Core.IO
@@ -11,7 +12,8 @@ namespace Microsoft.AspNetCore.Server.IIS.Core.IO
     {
         internal class WebSocketReadOperation : AsyncIOOperation
         {
-            public static readonly NativeMethods.PFN_WEBSOCKET_ASYNC_COMPLETION ReadCallback = (httpContext, completionInfo, completionContext) =>
+            [UnmanagedCallersOnly]
+            public static NativeMethods.REQUEST_NOTIFICATION_STATUS ReadCallback(IntPtr httpContext, IntPtr completionInfo, IntPtr completionContext)
             {
                 var context = (WebSocketReadOperation)GCHandle.FromIntPtr(completionContext).Target;
 
@@ -22,29 +24,29 @@ namespace Microsoft.AspNetCore.Server.IIS.Core.IO
                 continuation.Invoke();
 
                 return NativeMethods.REQUEST_NOTIFICATION_STATUS.RQ_NOTIFICATION_PENDING;
-            };
+            }
 
             private readonly WebSocketsAsyncIOEngine _engine;
-            private readonly GCHandle _thisHandle;
+            private GCHandle _thisHandle;
             private MemoryHandle _inputHandle;
-            private IntPtr _requestHandler;
+            private NativeSafeHandle _requestHandler;
             private Memory<byte> _memory;
 
             public WebSocketReadOperation(WebSocketsAsyncIOEngine engine)
             {
                 _engine = engine;
-                _thisHandle = GCHandle.Alloc(this);
             }
 
             protected override unsafe bool InvokeOperation(out int hr, out int bytes)
             {
+                _thisHandle = GCHandle.Alloc(this);
                 _inputHandle = _memory.Pin();
 
                 hr = NativeMethods.HttpWebsocketsReadBytes(
                     _requestHandler,
                     (byte*)_inputHandle.Pointer,
                     _memory.Length,
-                    ReadCallback,
+                    &ReadCallback,
                     (IntPtr)_thisHandle,
                     out bytes,
                     out var completionExpected);
@@ -52,7 +54,7 @@ namespace Microsoft.AspNetCore.Server.IIS.Core.IO
                 return !completionExpected;
             }
 
-            public void Initialize(IntPtr requestHandler, Memory<byte> memory)
+            public void Initialize(NativeSafeHandle requestHandler, Memory<byte> memory)
             {
                 _requestHandler = requestHandler;
                 _memory = memory;
@@ -66,6 +68,8 @@ namespace Microsoft.AspNetCore.Server.IIS.Core.IO
             protected override void ResetOperation()
             {
                 base.ResetOperation();
+
+                _thisHandle.Free();
 
                 _memory = default;
                 _inputHandle.Dispose();
